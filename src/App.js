@@ -1,3 +1,4 @@
+import "@fortawesome/fontawesome-free/css/all.min.css";
 import './App.css';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import StreamList from './components/StreamList';
