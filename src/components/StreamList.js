@@ -7,40 +7,67 @@ function StreamList() {
   const [items, setItems] = useState(() => {
     try {
       const savedItems = localStorage.getItem("streamListItems");
-      return savedItems ? JSON.parse(savedItems) : [];
+      const parsed = savedItems ? JSON.parse(savedItems) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter(
+          (item) =>
+            item && typeof item.title === "string" && typeof item.completed === "boolean"
+        )
+        .map((item) => ({
+          ...item,
+          id:
+            typeof item.id === "string" || typeof item.id === "number"
+              ? item.id
+              : window.crypto?.randomUUID?.() ??
+                `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        }));
     } catch {
       return [];
     }
   });
  
   useEffect(() => {
-    localStorage.setItem("streamListItems", JSON.stringify(items));
+    try {
+      localStorage.setItem("streamListItems", JSON.stringify(items));
+    } catch {
+      // Storage unavailable or quota exceeded; keep in-memory list usable.
+    }
   }, [items]);
  
   const handleSubmit = (event) => {
     event.preventDefault();
     if (title.trim() === "") return;
-    setItems([...items, { title: title.trim(), completed: false }]);
+    setItems((prev) => [
+      ...prev,
+      {
+        id: window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        title: title.trim(),
+        completed: false,
+      },
+    ]);
     setTitle("");
   };
  
-  const handleComplete = (index) => {
-    setItems(items.map((item, itemIndex) =>
-      itemIndex === index ? { ...item, completed: !item.completed } : item
-    ));
+  const handleComplete = (id) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item))
+    );
   };
  
-  const handleEdit = (index) => {
-    const newTitle = window.prompt("Edit your movie or TV show:", items[index].title);
+  const handleEdit = (id) => {
+    const current = items.find((item) => item.id === id);
+    if (!current) return;
+    const newTitle = window.prompt("Edit your movie or TV show:", current.title);
     if (newTitle !== null && newTitle.trim() !== "") {
-      setItems(items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, title: newTitle.trim() } : item
-      ));
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, title: newTitle.trim() } : item))
+      );
     }
   };
  
-  const handleDelete = (index) => {
-    setItems(items.filter((item, itemIndex) => itemIndex !== index));
+  const handleDelete = (id) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
   };
  
   return (
@@ -57,19 +84,19 @@ function StreamList() {
         <button type="submit">Add to StreamList</button>
       </form>
       <ul>
-        {items.map((item, index) => (
-          <li key={index}>
+        {items.map((item) => (
+          <li key={item.id}>
             <span style={{ textDecoration: item.completed ? "line-through" : "none" }}>
               {item.title}
             </span>
-            <button type="button" onClick={() => handleComplete(index)}
+            <button type="button" onClick={() => handleComplete(item.id)}
               title={item.completed ? "Undo" : "Complete"}>
               <FontAwesomeIcon icon={faCheck} /> {item.completed ? "Undo" : "Complete"}
             </button>
-            <button type="button" onClick={() => handleEdit(index)} title="Edit">
+            <button type="button" onClick={() => handleEdit(item.id)} title="Edit">
               <FontAwesomeIcon icon={faPen} /> Edit
             </button>
-            <button type="button" onClick={() => handleDelete(index)} title="Delete">
+            <button type="button" onClick={() => handleDelete(item.id)} title="Delete">
               <FontAwesomeIcon icon={faTrash} /> Delete
             </button>
           </li>
